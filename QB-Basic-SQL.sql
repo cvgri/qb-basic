@@ -1,4 +1,5 @@
-CREATE DATABASE IF NOT EXISTS `cvgri_qbcore`
+CREATE DATABASE `cvgri_qbcore`
+SHOW DATABASES;
 USE `cvgri_qbcore`;
 
 CREATE TABLE IF NOT EXISTS `players` (
