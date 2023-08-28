@@ -1,5 +1,6 @@
 local cam = nil
 local charPed = nil
+local loadScreenCheckState = false
 local QBCore = exports['qb-core']:GetCoreObject()
 
 -- Main Thread
@@ -37,13 +38,26 @@ end
 
 local function openCharMenu(bool)
     QBCore.Functions.TriggerCallback("qb-multicharacter:server:GetNumberOfCharacters", function(result)
+        local translations = {}
+        for k in pairs(Lang.fallback and Lang.fallback.phrases or Lang.phrases) do
+            if k:sub(0, ('ui.'):len()) then
+                translations[k:sub(('ui.'):len() + 1)] = Lang:t(k)
+            end
+        end
         SetNuiFocus(bool, bool)
         SendNUIMessage({
             action = "ui",
+            customNationality = Config.customNationality,
             toggle = bool,
             nChar = result,
+            enableDeleteButton = Config.EnableDeleteButton,
+            translations = translations
         })
         skyCam(bool)
+        if not loadScreenCheckState then
+            ShutdownLoadingScreenNui()
+            loadScreenCheckState = true
+        end
     end)
 end
 
@@ -92,27 +106,30 @@ end)
 
 -- NUI Callbacks
 
-RegisterNUICallback('closeUI', function()
+RegisterNUICallback('closeUI', function(_, cb)
     openCharMenu(false)
+    cb("ok")
 end)
 
-RegisterNUICallback('disconnectButton', function()
+RegisterNUICallback('disconnectButton', function(_, cb)
     SetEntityAsMissionEntity(charPed, true, true)
     DeleteEntity(charPed)
     TriggerServerEvent('qb-multicharacter:server:disconnect')
+    cb("ok")
 end)
 
-RegisterNUICallback('selectCharacter', function(data)
+RegisterNUICallback('selectCharacter', function(data, cb)
     local cData = data.cData
     DoScreenFadeOut(10)
     TriggerServerEvent('qb-multicharacter:server:loadUserData', cData)
     openCharMenu(false)
     SetEntityAsMissionEntity(charPed, true, true)
     DeleteEntity(charPed)
+    cb("ok")
 end)
 
-RegisterNUICallback('cDataPed', function(data)
-    local cData = data.cData  
+RegisterNUICallback('cDataPed', function(nData, cb)
+    local cData = nData.cData
     SetEntityAsMissionEntity(charPed, true, true)
     DeleteEntity(charPed)
     if cData ~= nil then
@@ -139,7 +156,7 @@ RegisterNUICallback('cDataPed', function(data)
                         "mp_m_freemode_01",
                         "mp_f_freemode_01",
                     }
-                    local model = GetHashKey(randommodels[math.random(1, #randommodels)])
+                    model = joaat(randommodels[math.random(1, #randommodels)])
                     RequestModel(model)
                     while not HasModelLoaded(model) do
                         Wait(0)
@@ -152,6 +169,7 @@ RegisterNUICallback('cDataPed', function(data)
                     SetBlockingOfNonTemporaryEvents(charPed, true)
                 end)
             end
+            cb("ok")
         end, cData.citizenid)
     else
         CreateThread(function()
@@ -159,7 +177,7 @@ RegisterNUICallback('cDataPed', function(data)
                 "mp_m_freemode_01",
                 "mp_f_freemode_01",
             }
-            local model = GetHashKey(randommodels[math.random(1, #randommodels)])
+            local model = joaat(randommodels[math.random(1, #randommodels)])
             RequestModel(model)
             while not HasModelLoaded(model) do
                 Wait(0)
@@ -171,35 +189,41 @@ RegisterNUICallback('cDataPed', function(data)
             PlaceObjectOnGroundProperly(charPed)
             SetBlockingOfNonTemporaryEvents(charPed, true)
         end)
+        cb("ok")
     end
 end)
 
-RegisterNUICallback('setupCharacters', function()
+RegisterNUICallback('setupCharacters', function(_, cb)
     QBCore.Functions.TriggerCallback("qb-multicharacter:server:setupCharacters", function(result)
         SendNUIMessage({
             action = "setupCharacters",
             characters = result
         })
+        cb("ok")
     end)
 end)
 
-RegisterNUICallback('removeBlur', function()
+RegisterNUICallback('removeBlur', function(_, cb)
     SetTimecycleModifier('default')
+    cb("ok")
 end)
 
-RegisterNUICallback('createNewCharacter', function(data)
+RegisterNUICallback('createNewCharacter', function(data, cb)
     local cData = data
     DoScreenFadeOut(150)
-    if cData.gender == "Male" then
+    if cData.gender == Lang:t("ui.male") then
         cData.gender = 0
-    elseif cData.gender == "Female" then
+    elseif cData.gender == Lang:t("ui.female") then
         cData.gender = 1
     end
     TriggerServerEvent('qb-multicharacter:server:createCharacter', cData)
     Wait(500)
+    cb("ok")
 end)
 
-RegisterNUICallback('removeCharacter', function(data)
+RegisterNUICallback('removeCharacter', function(data, cb)
     TriggerServerEvent('qb-multicharacter:server:deleteCharacter', data.citizenid)
+    DeletePed(charPed)
     TriggerEvent('qb-multicharacter:client:chooseChar')
+    cb("ok")
 end)
